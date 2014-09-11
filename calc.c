@@ -2,69 +2,78 @@
 #include <stdlib.h>
 #include <string.h>
 
-int calculate(char** str, int* res) {
+#define BOOL int
+#define TRUE 1
+#define FALSE 0
 
-    char* pc = *str;
-    int digit;
-    int val = 0;
-    char last_op = '\0';
+int calculate(char* pbegin, char** pend, int* res, BOOL deep) {
+
+    int value;
+    int d;
+    char* p = pbegin;
     *res = 0;
 
     while (1) {
-        
-        fprintf(stderr, "*pc = \'%c\' (%02x)\n", *pc, (unsigned char) *pc);
-        
-        if (*pc >= '0' && *pc <= '9') {
-            digit = ((int) *pc) - 48;
-            fprintf(stderr, "digit = %d\n", digit);
-            val = 10 * val + digit;
-            fprintf(stderr, "val = %d\n", val);
-        } else if (*pc == '+' || *pc == '-' || *pc == '*' || *pc == '\0' || *pc == ')') {
-            if ('\0' == last_op) {
-                *res = val;
-                fprintf(stderr, "*res = %d\n", *res);
-            } else if ('+' == last_op) {
-                *res = *res + val;
-                fprintf(stderr, "*res = %d\n", *res);
-            } else if ('-' == last_op) {
-                *res = *res - val;
-                fprintf(stderr, "*res = %d\n", *res);
-            } else if ('*' == last_op) {
-                *res = *res * val;
-                fprintf(stderr, "*res = %d\n", *res);
-            } 
-            val = 0;
-            last_op = *pc;
-            fprintf(stderr, "last_op = \'%c\'\n", last_op);
-        } else if (*pc == '(') {
-            ++pc;
-            if (calculate(&pc, &val) == 0) {
-                fprintf(stderr, "val = %d\n", val);
-                ++pc;
-                continue;
-            } else {
+        fprintf(stderr, "%d: *p = \'%c\' (0x%02x)\n", __LINE__, *p, (unsigned) *p);
+        if ('0' <= *p && *p <= '9') {
+            d = ((int) *p) - 0x30;
+            fprintf(stderr, "%d: d = %d\n", __LINE__, d);
+            *res = 10 * *res + d;
+            fprintf(stderr, "%d: *res = %d\n", __LINE__, *res);
+        } else if ('+' == *p) {
+            if (!deep) {
+                *pend = p - 1;
+                return 0;
+            }
+            if (calculate(p + 1, &p, &value, TRUE) != 0) {
                 return 1;
             }
-        } else if (*pc == ' ') {
+            *res = *res + value;
+            fprintf(stderr, "%d: *res = %d\n", __LINE__, *res);
+        } else if ('-' == *p) {
+            if (!deep) {
+                *pend = p - 1;
+                return 0;
+            }
+            if (calculate(p + 1, &p, &value, TRUE) != 0) {
+                return 1;
+            }
+            *res = *res - value;
+            fprintf(stderr, "%d: *res = %d\n", __LINE__, *res);
+        } else if ('*' == *p) {
+            if (calculate(p + 1, &p, &value, FALSE) != 0) {
+                return 1;
+            }
+            *res = *res * value;
+            fprintf(stderr, "%d: *res = %d\n", __LINE__, *res);
+        } else if ('(' == *p) {
+            if (calculate(p + 1, &p, &value, TRUE) != 0) {
+                return 1;
+            }
+            *res = value;
+            ++p;
+        } else if (')' == *p || '\0' == *p) {
+            fprintf(stderr, "%d:\n", __LINE__);
+            if (NULL != pend) {
+               *pend = p - 1;
+            }
+            return 0;
         } else {
-            fprintf(stderr, "Illegal symbol \'%c\' (%02x)\n", *pc, (unsigned char) *pc);
             return 1;
         }
-
-        if ('\0' == *pc || ')' == *pc) {
-            break;
+        ++p;
+        if (NULL != pend) {
+            *pend = p;
         }
-        ++pc;
+        fprintf(stderr, "%d: ++p\n", __LINE__);
     }
-
-    *str = pc;
-
-    return 0;
+    
+    return 1;
 }
 
 int main(int argc, char* argv[]) {
 
-    if (argc != 2) {
+     if (argc != 2) {
         fprintf(stderr, "Usage:\n");
         return 1;
     }
@@ -73,7 +82,7 @@ int main(int argc, char* argv[]) {
 
     fprintf(stderr, "argv[1] = \"%s\"\n", argv[1]);
 
-    if (calculate(&argv[1], &result) == 0) {
+    if (calculate(argv[1], NULL, &result, TRUE) == 0) {
         printf("= %d\n", result);
     } else {
         fprintf(stderr, "Error\n");
