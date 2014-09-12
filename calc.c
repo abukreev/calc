@@ -2,95 +2,101 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define BOOL int
-#define TRUE 1
+#define BOOL unsigned int
 #define FALSE 0
+#define TRUE  1
 
-int calculate(char* pbegin, char** pend, int* res, BOOL deep, int level) {
+int calculate_p(char* pbg, char** pend, int* res, BOOL mul_div_only,
+                BOOL in_braces) {
 
-    int value;
-    int d;
-    char* p = pbegin;
+    int tmp;
     *res = 0;
-
+    char *p = pbg;
     while (1) {
-        fprintf(stderr, "%d: *p = \'%c\' (0x%02x); level = %d\n", __LINE__, *p, (unsigned) *p, level);
+        fprintf(stderr, "%d: *p = \'%c\' (02%02x)\n", __LINE__, *p, *p);
         if ('0' <= *p && *p <= '9') {
-            d = ((int) *p) - 0x30;
-            fprintf(stderr, "%d: d = %d\n", __LINE__, d);
-            *res = 10 * *res + d;
+            *res = 10 * *res + (((int) *p) - 0x30);
             fprintf(stderr, "%d: *res = %d\n", __LINE__, *res);
             ++p;
-        } else if ('+' == *p) {
-            if (!deep && p != pbegin) {
-                *pend = p - 1;
-                return 0;
-            }
-            if (p == pbegin) {
-                ++p;
-                continue;
-            }
-            if (calculate(p + 1, &p, &value, TRUE, level + 1) != 0) {
-                return 1;
-            }
-            *res = *res + value;
-            fprintf(stderr, "%d: *res = %d\n", __LINE__, *res);
-            ++p;
-        } else if ('-' == *p) {
-            if (!deep && p != pbegin) {
-                *pend = p - 1;
-                return 0;
-            }
-            if (p == pbegin) {
-                if (calculate(p + 1, &p, &value, FALSE, level + 1) != 0) {
+        } if ('+' == *p) {
+            if (p == pbg) {
+                if (in_braces) {
+                    ++p;
+                } else {
+                    fprintf(stderr, "%d\n", __LINE__);
                     return 1;
                 }
-                *res = -value;
-                ++p;
             } else {
-                if (calculate(p + 1, &p, &value, TRUE, level + 1) != 0) {
+                if (mul_div_only) {
+                    *pend = p;
+                    return 0;
+                }
+                if (calculate_p(p + 1, &p, &tmp, FALSE, FALSE)) {
+                    fprintf(stderr, "%d\n", __LINE__);
                     return 1;
                 }
-                *res = *res - value;
-                fprintf(stderr, "%d: *res = %d\n", __LINE__, *res);
-                ++p;
+                *res += tmp;
             }
-        } else if ('*' == *p) {
-            if (calculate(p + 1, &p, &value, FALSE, level + 1) != 0) {
+        } if ('-' == *p) {
+            if (p == pbg) {
+                if (in_braces) {
+                    if (calculate_p(p + 1, &p, &tmp, TRUE, FALSE)) {
+                        fprintf(stderr, "%d\n", __LINE__);
+                        return 1;
+                    }
+                    *res = -tmp; 
+                } else {
+                    fprintf(stderr, "%d\n", __LINE__);
+                    return 1;
+                }
+            } else {
+                if (mul_div_only) {
+                    *pend = p;
+                    return 0;
+                }
+                if (calculate_p(p + 1, &p, &tmp, FALSE, FALSE)) {
+                    fprintf(stderr, "%d\n", __LINE__);
+                    return 1;
+                }
+                *res -= tmp;
+            }
+        } if ('*' == *p) {
+            if (p == pbg) {
+                fprintf(stderr, "%d\n", __LINE__);
+                return 1;
+            } else {
+                if (calculate_p(p + 1, &p, &tmp, TRUE, FALSE)) {
+                    fprintf(stderr, "%d\n", __LINE__);
+                    return 1;
+                }
+                *res *= tmp;
+            }
+        } if ('(' == *p) {
+            if (calculate_p(p + 1, &p, &tmp, FALSE, TRUE)) {
+                fprintf(stderr, "%d\n", __LINE__);
                 return 1;
             }
-            *res = *res * value;
-            fprintf(stderr, "%d: *res = %d\n", __LINE__, *res);
-            ++p;
-        } else if ('(' == *p) {
-            if (calculate(p + 1, &p, &value, TRUE, level + 1) != 0) {
-                return 1;
-            }
-            *res = value;
-            fprintf(stderr, "%d:\n", __LINE__);
-            p += 2; // eat ')'
-        } else if (')' == *p) {
-            fprintf(stderr, "%d:\n", __LINE__);
-            if (level == 1) {
-                fprintf(stderr, "%d:\n", __LINE__);
-                return 1;
-            }
-            if (NULL != pend) {
-               *pend = p - 1; // return '0' to the upper level
-            }
+            *res = tmp;
+            ++p; // eat ')'
+        } if (')' == *p) {
+            *pend = p; // return ')' to the caller
             return 0;
-        } else if ('\0' == *p) {
-            fprintf(stderr, "%d:\n", __LINE__);
-            if (NULL != pend) {
-               *pend = p - 1;
-            }
-            return 0;
+        } if (' ' == *p || '\n' == *p || '\r' == *p) {
+        } if ('\0' == *p) {
+            fprintf(stderr, "%d\n", __LINE__);
+            *pend = p;
+            break;
         } else {
-            return 1;
         }
     }
-    
-    return 1;
+
+    return 0;
+}
+
+int calculate(char* pbg, int* res) {
+
+    char* dummy;
+    return calculate_p(pbg, &dummy, res, FALSE, TRUE);
 }
 
 int main(int argc, char* argv[]) {
@@ -104,7 +110,7 @@ int main(int argc, char* argv[]) {
 
     fprintf(stderr, "argv[1] = \"%s\"\n", argv[1]);
 
-    if (calculate(argv[1], NULL, &result, TRUE, 1) == 0) {
+    if (calculate(argv[1], &result) == 0) {
         printf("%d\n", result);
     } else {
         fprintf(stderr, "Error\n");
