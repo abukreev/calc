@@ -115,6 +115,7 @@ int calculate_p(char* pbg, char** pend, TYPE* res, BOOL mul_div_only,
             *pend = p; // return ')' to the caller
             return 0;
         } if (' ' == *p || '\n' == *p || '\r' == *p) {
+            ++p;
         } if ('\0' == *p) {
             fprintf(stderr, "%d\n", __LINE__);
             *pend = p;
