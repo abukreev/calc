@@ -2,21 +2,24 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define TYPE float
+#define PLACEHOLDER "%f"
+
 #define BOOL unsigned int
 #define FALSE 0
 #define TRUE  1
 
-int calculate_p(char* pbg, char** pend, int* res, BOOL mul_div_only,
+int calculate_p(char* pbg, char** pend, TYPE* res, BOOL mul_div_only,
                 BOOL in_braces) {
 
-    int tmp;
+    TYPE tmp;
     *res = 0;
     char *p = pbg;
     while (1) {
         fprintf(stderr, "%d: *p = \'%c\' (02%02x)\n", __LINE__, *p, *p);
         if ('0' <= *p && *p <= '9') {
-            *res = 10 * *res + (((int) *p) - 0x30);
-            fprintf(stderr, "%d: *res = %d\n", __LINE__, *res);
+            *res = 10 * *res + (((TYPE) *p) - 0x30);
+            fprintf(stderr, "%d: *res = "PLACEHOLDER"\n", __LINE__, *res);
             ++p;
         } if ('+' == *p) {
             if (p == pbg) {
@@ -93,7 +96,7 @@ int calculate_p(char* pbg, char** pend, int* res, BOOL mul_div_only,
     return 0;
 }
 
-int calculate(char* pbg, int* res) {
+int calculate(char* pbg, TYPE* res) {
 
     char* dummy;
     return calculate_p(pbg, &dummy, res, FALSE, TRUE);
@@ -106,12 +109,12 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    int result;
+    TYPE result;
 
     fprintf(stderr, "argv[1] = \"%s\"\n", argv[1]);
 
     if (calculate(argv[1], &result) == 0) {
-        printf("%d\n", result);
+        printf(PLACEHOLDER"\n", result);
     } else {
         fprintf(stderr, "Error\n");
     }
