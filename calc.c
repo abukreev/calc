@@ -74,6 +74,22 @@ int calculate_p(char* pbg, char** pend, TYPE* res, BOOL mul_div_only,
                 }
                 *res *= tmp;
             }
+        } if ('/' == *p) {
+            if (p == pbg) {
+                fprintf(stderr, "%d\n", __LINE__);
+                return 1;
+            } else {
+                if (calculate_p(p + 1, &p, &tmp, TRUE, FALSE)) {
+                    fprintf(stderr, "%d\n", __LINE__);
+                    return 1;
+                }
+                if (0 == tmp) {
+                    fprintf(stderr, "%d\n", __LINE__);
+                    return 1;
+                } else {
+                    *res /= tmp;
+                }
+            }
         } if ('(' == *p) {
             if (calculate_p(p + 1, &p, &tmp, FALSE, TRUE)) {
                 fprintf(stderr, "%d\n", __LINE__);
