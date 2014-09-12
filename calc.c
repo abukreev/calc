@@ -26,6 +26,10 @@ int calculate(char* pbegin, char** pend, int* res, BOOL deep, int level) {
                 *pend = p - 1;
                 return 0;
             }
+            if (p == pbegin) {
+                ++p;
+                continue;
+            }
             if (calculate(p + 1, &p, &value, TRUE, level + 1) != 0) {
                 return 1;
             }
@@ -37,12 +41,20 @@ int calculate(char* pbegin, char** pend, int* res, BOOL deep, int level) {
                 *pend = p - 1;
                 return 0;
             }
-            if (calculate(p + 1, &p, &value, TRUE, level + 1) != 0) {
-                return 1;
+            if (p == pbegin) {
+                if (calculate(p + 1, &p, &value, FALSE, level + 1) != 0) {
+                    return 1;
+                }
+                *res = -value;
+                ++p;
+            } else {
+                if (calculate(p + 1, &p, &value, TRUE, level + 1) != 0) {
+                    return 1;
+                }
+                *res = *res - value;
+                fprintf(stderr, "%d: *res = %d\n", __LINE__, *res);
+                ++p;
             }
-            *res = *res - value;
-            fprintf(stderr, "%d: *res = %d\n", __LINE__, *res);
-            ++p;
         } else if ('*' == *p) {
             if (calculate(p + 1, &p, &value, FALSE, level + 1) != 0) {
                 return 1;
