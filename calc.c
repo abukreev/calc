@@ -9,8 +9,8 @@
 #define FALSE 0
 #define TRUE  1
 
-int calculate_p(char* pbg, char** pend, TYPE* res, BOOL mul_div_only,
-                BOOL in_braces) {
+int calculate_p(char* pbg, char** pend, TYPE* res, int level,
+                BOOL mul_div_only) {
 
     TYPE tmp;
     *res = 0;
@@ -28,7 +28,7 @@ int calculate_p(char* pbg, char** pend, TYPE* res, BOOL mul_div_only,
             ++p;
         } if ('+' == *p) {
             if (p == pbg) {
-                if (in_braces) {
+                if (level > 1) {
                     ++p;
                 } else {
                     fprintf(stderr, "%d\n", __LINE__);
@@ -40,7 +40,7 @@ int calculate_p(char* pbg, char** pend, TYPE* res, BOOL mul_div_only,
                     *pend = p;
                     return 0;
                 }
-                if (calculate_p(p + 1, &p, &tmp, FALSE, FALSE)) {
+                if (calculate_p(p + 1, &p, &tmp, level, FALSE)) {
                     fprintf(stderr, "%d\n", __LINE__);
                     *res = p - pbg + 1 + tmp;
                     return 1;
@@ -49,8 +49,8 @@ int calculate_p(char* pbg, char** pend, TYPE* res, BOOL mul_div_only,
             }
         } if ('-' == *p) {
             if (p == pbg) {
-                if (in_braces) {
-                    if (calculate_p(p + 1, &p, &tmp, TRUE, FALSE)) {
+                if (level > 1) {
+                    if (calculate_p(p + 1, &p, &tmp, level, TRUE)) {
                         fprintf(stderr, "%d\n", __LINE__);
                         *res = p - pbg + 1 + tmp;
                         return 1;
@@ -66,7 +66,7 @@ int calculate_p(char* pbg, char** pend, TYPE* res, BOOL mul_div_only,
                     *pend = p;
                     return 0;
                 }
-                if (calculate_p(p + 1, &p, &tmp, FALSE, FALSE)) {
+                if (calculate_p(p + 1, &p, &tmp, level, FALSE)) {
                     fprintf(stderr, "%d\n", __LINE__);
                     *res = p - pbg + 1 + tmp;
                     return 1;
@@ -79,7 +79,7 @@ int calculate_p(char* pbg, char** pend, TYPE* res, BOOL mul_div_only,
                 *res = 0;
                 return 1;
             } else {
-                if (calculate_p(p + 1, &p, &tmp, TRUE, FALSE)) {
+                if (calculate_p(p + 1, &p, &tmp, level, TRUE)) {
                     fprintf(stderr, "%d\n", __LINE__);
                     *res = p - pbg + 1 + tmp;
                     return 1;
@@ -89,9 +89,10 @@ int calculate_p(char* pbg, char** pend, TYPE* res, BOOL mul_div_only,
         } if ('/' == *p) {
             if (p == pbg) {
                 fprintf(stderr, "%d\n", __LINE__);
-                return ((p - pbg) + 1);
+                *res = p - pbg;
+                return 1;
             } else {
-                if (calculate_p(p + 1, &p, &tmp, TRUE, FALSE)) {
+                if (calculate_p(p + 1, &p, &tmp, level, TRUE)) {
                     fprintf(stderr, "%d\n", __LINE__);
                     *res = p - pbg + 1 + tmp;
                     return 1;
@@ -104,7 +105,7 @@ int calculate_p(char* pbg, char** pend, TYPE* res, BOOL mul_div_only,
                 }
             }
         } if ('(' == *p) {
-            if (calculate_p(p + 1, &p, &tmp, FALSE, TRUE)) {
+            if (calculate_p(p + 1, &p, &tmp, level + 1, FALSE)) {
                 fprintf(stderr, "%d\n", __LINE__);
                 *res = p - pbg + 1 + tmp;
                 return 1;
@@ -112,16 +113,33 @@ int calculate_p(char* pbg, char** pend, TYPE* res, BOOL mul_div_only,
             *res = tmp;
             ++p; // eat ')'
         } if (')' == *p) {
-            *pend = p; // return ')' to the caller
+            if (level == 1) {
+                fprintf(stderr, "%d\n", __LINE__);
+                *res = p - pbg;
+                return 1;
+            } else {
+                *pend = p; // return ')' to the caller
+            }
             return 0;
         } if (' ' == *p || '\n' == *p || '\r' == *p) {
             ++p;
         } if ('\0' == *p) {
-            fprintf(stderr, "%d\n", __LINE__);
-            *pend = p;
-            break;
+            if (level > 1) {
+                fprintf(stderr, "%d\n", __LINE__);
+                *res = p - pbg;
+                return 1;
+            } else {
+                fprintf(stderr, "%d\n", __LINE__);
+                *pend = p;
+                break;
+            }
         } else {
         }
+    }
+
+    if (1 != level) {
+        *res  = 0;
+        return 1;
     }
 
     return 0;
@@ -130,7 +148,7 @@ int calculate_p(char* pbg, char** pend, TYPE* res, BOOL mul_div_only,
 int calculate(char* pbg, TYPE* res) {
 
     char* dummy;
-    return calculate_p(pbg, &dummy, res, FALSE, TRUE);
+    return calculate_p(pbg, &dummy, res, 1, FALSE);
 }
 
 int main(int argc, char* argv[]) {
