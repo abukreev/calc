@@ -3,7 +3,7 @@
 #include <string.h>
 
 #define TYPE float
-#define PLACEHOLDER "%f"
+#define PLACEHOLDER "f"
 
 #define BOOL unsigned int
 #define FALSE 0
@@ -27,7 +27,7 @@ int calculate_p(char* pbg, char** pend, TYPE* res, int level,
         fprintf(stderr, "%d: *p = \'%c\' (02%02x)\n", __LINE__, *p, *p);
         if ('0' <= *p && *p <= '9') {
             *res = 10 * *res + (((TYPE) *p) - 0x30);
-            fprintf(stderr, "%d: *res = "PLACEHOLDER"\n", __LINE__, *res);
+            fprintf(stderr, "%d: *res = %"PLACEHOLDER"\n", __LINE__, *res);
             ++p;
         } if ('+' == *p) {
             if (p == pbg) {
@@ -119,7 +119,7 @@ int calculate_p(char* pbg, char** pend, TYPE* res, int level,
             if (level == 1) {
                 fprintf(stderr, "%d\n", __LINE__);
                 *res = p - pbg;
-                return ret;
+                return RET_SYNTAX;
             } else {
                 *pend = p; // return ')' to the caller
             }
@@ -154,10 +154,21 @@ int calculate(char* pbg, TYPE* res) {
     return calculate_p(pbg, &dummy, res, 1, FALSE);
 }
 
+void print(float value, int a, char* buf) {
+
+    char* p;
+    sprintf(buf, "%0.*"PLACEHOLDER, a, value);
+    for (p = buf + strlen(buf) - 1;
+       (*p == '0' || *p == '.') && p > buf; --p) {
+        *p = '\0';
+    }
+}
+
 int main(int argc, char* argv[]) {
 
     int i;
     int ret;
+    char buf[1024];
 
     if (argc != 2) {
         fprintf(stderr, "Usage:\n");
@@ -171,18 +182,19 @@ int main(int argc, char* argv[]) {
 
     ret = calculate(argv[1], &result);
     if (RET_OK == ret) {
-        printf(PLACEHOLDER"\n", result);
-    } else {
-        if (RET_SYNTAX == ret) {
-            fprintf(stderr, "Syntax error at %d\n", (int) result);
-            fprintf(stderr, "%s\n", argv[1]);
-            for (i = 0; i < result; ++i) {
-                fprintf(stderr, " ");
-            }
-            fprintf(stderr, "^\n");
-        } else if (RET_DIVZERO == ret) {
-            fprintf(stderr, "Divizion by zero\n");
+        print(result, 8, buf);
+        printf("%s\n", buf);
+    } else if (RET_SYNTAX == ret) {
+        fprintf(stderr, "Syntax error at %d\n", (int) result);
+        fprintf(stderr, "%s\n", argv[1]);
+        for (i = 0; i < result; ++i) {
+            fprintf(stderr, " ");
         }
+        fprintf(stderr, "^\n");
+    } else if (RET_DIVZERO == ret) {
+        fprintf(stderr, "Divizion by zero\n");
+    } else {
+        fprintf(stderr, "Unknown return code %d\n", ret);
     }
 
     return EXIT_SUCCESS;
