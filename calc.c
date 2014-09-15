@@ -9,15 +9,18 @@
 #define FALSE 0
 #define TRUE  1
 
+enum { RET_OK, RET_SYNTAX, RET_DIVZERO };
+
 int calculate_p(char* pbg, char** pend, TYPE* res, int level,
                 BOOL mul_div_only) {
 
     TYPE tmp;
     *res = 0;
     char *p = pbg;
+    int ret;
 
     if (strlen(pbg) == 0) {
-        return 1;
+        return RET_SYNTAX;
     }
 
     while (1) {
@@ -33,43 +36,43 @@ int calculate_p(char* pbg, char** pend, TYPE* res, int level,
                 } else {
                     fprintf(stderr, "%d\n", __LINE__);
                     *res = 0;
-                    return 1;
+                    return RET_SYNTAX;
                 }
             } else {
                 if (mul_div_only) {
                     *pend = p;
-                    return 0;
+                    return RET_OK;
                 }
-                if (calculate_p(p + 1, &p, &tmp, level, FALSE)) {
+                if ((ret = calculate_p(p + 1, &p, &tmp, level, FALSE)) != 0) {
                     fprintf(stderr, "%d\n", __LINE__);
                     *res = p - pbg + 1 + tmp;
-                    return 1;
+                    return ret;
                 }
                 *res += tmp;
             }
         } if ('-' == *p) {
             if (p == pbg) {
                 if (level > 1) {
-                    if (calculate_p(p + 1, &p, &tmp, level, TRUE)) {
+                    if ((ret = calculate_p(p + 1, &p, &tmp, level, TRUE)) != 0) {
                         fprintf(stderr, "%d\n", __LINE__);
                         *res = p - pbg + 1 + tmp;
-                        return 1;
+                        return ret;
                     }
                     *res = -tmp; 
                 } else {
                     fprintf(stderr, "%d\n", __LINE__);
                     *res = 0;
-                    return 1;
+                    return RET_SYNTAX;
                 }
             } else {
                 if (mul_div_only) {
                     *pend = p;
-                    return 0;
+                    return RET_OK;
                 }
-                if (calculate_p(p + 1, &p, &tmp, level, FALSE)) {
+                if ((ret = calculate_p(p + 1, &p, &tmp, level, FALSE)) != 0) {
                     fprintf(stderr, "%d\n", __LINE__);
                     *res = p - pbg + 1 + tmp;
-                    return 1;
+                    return ret;
                 }
                 *res -= tmp;
             }
@@ -77,12 +80,12 @@ int calculate_p(char* pbg, char** pend, TYPE* res, int level,
             if (p == pbg) {
                 fprintf(stderr, "%d\n", __LINE__);
                 *res = 0;
-                return 1;
+                return RET_SYNTAX;
             } else {
-                if (calculate_p(p + 1, &p, &tmp, level, TRUE)) {
+                if ((ret = calculate_p(p + 1, &p, &tmp, level, TRUE)) != 0) {
                     fprintf(stderr, "%d\n", __LINE__);
                     *res = p - pbg + 1 + tmp;
-                    return 1;
+                    return ret;
                 }
                 *res *= tmp;
             }
@@ -90,25 +93,25 @@ int calculate_p(char* pbg, char** pend, TYPE* res, int level,
             if (p == pbg) {
                 fprintf(stderr, "%d\n", __LINE__);
                 *res = p - pbg;
-                return 1;
+                return RET_SYNTAX;
             } else {
-                if (calculate_p(p + 1, &p, &tmp, level, TRUE)) {
+                if ((ret = calculate_p(p + 1, &p, &tmp, level, TRUE)) != 0) {
                     fprintf(stderr, "%d\n", __LINE__);
                     *res = p - pbg + 1 + tmp;
-                    return 1;
+                    return ret;
                 }
                 if (0 == tmp) {
-                    fprintf(stderr, "%d\n", __LINE__);
-                    return 2;
+                    fprintf(stderr, "%d: Division by zero\n", __LINE__);
+                    return RET_DIVZERO;
                 } else {
                     *res /= tmp;
                 }
             }
         } if ('(' == *p) {
-            if (calculate_p(p + 1, &p, &tmp, level + 1, FALSE)) {
+            if ((ret = calculate_p(p + 1, &p, &tmp, level + 1, FALSE)) != 0) {
                 fprintf(stderr, "%d\n", __LINE__);
                 *res = p - pbg + 1 + tmp;
-                return 1;
+                return ret;
             }
             *res = tmp;
             ++p; // eat ')'
@@ -116,18 +119,18 @@ int calculate_p(char* pbg, char** pend, TYPE* res, int level,
             if (level == 1) {
                 fprintf(stderr, "%d\n", __LINE__);
                 *res = p - pbg;
-                return 1;
+                return ret;
             } else {
                 *pend = p; // return ')' to the caller
             }
-            return 0;
+            return RET_OK;
         } if (' ' == *p || '\n' == *p || '\r' == *p) {
             ++p;
         } if ('\0' == *p) {
             if (level > 1) {
                 fprintf(stderr, "%d\n", __LINE__);
                 *res = p - pbg;
-                return 1;
+                return RET_SYNTAX;
             } else {
                 fprintf(stderr, "%d\n", __LINE__);
                 *pend = p;
@@ -139,10 +142,10 @@ int calculate_p(char* pbg, char** pend, TYPE* res, int level,
 
     if (1 != level) {
         *res  = 0;
-        return 1;
+        return RET_SYNTAX;
     }
 
-    return 0;
+    return RET_OK;
 }
 
 int calculate(char* pbg, TYPE* res) {
@@ -158,7 +161,7 @@ int main(int argc, char* argv[]) {
 
     if (argc != 2) {
         fprintf(stderr, "Usage:\n");
-        return 1;
+        return EXIT_FAILURE;
     }
 
     TYPE result;
@@ -167,18 +170,20 @@ int main(int argc, char* argv[]) {
 
 
     ret = calculate(argv[1], &result);
-    if (0 == ret) {
+    if (RET_OK == ret) {
         printf(PLACEHOLDER"\n", result);
     } else {
-        fprintf(stderr, "Error\n");
-        if (1 == ret) {
+        if (RET_SYNTAX == ret) {
+            fprintf(stderr, "Syntax error at %d\n", (int) result);
             fprintf(stderr, "%s\n", argv[1]);
             for (i = 0; i < result; ++i) {
                 fprintf(stderr, " ");
             }
             fprintf(stderr, "^\n");
+        } else if (RET_DIVZERO == ret) {
+            fprintf(stderr, "Divizion by zero\n");
         }
     }
 
-    return 0;
+    return EXIT_SUCCESS;
 }
